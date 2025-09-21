@@ -9,6 +9,7 @@
 <body>
   <h2>請稍候...</h2>
   <script>
+    // 1️⃣ Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyDwNLmo8CbUy_yz8Phay5ugxBVnsTWxrtc",
       authDomain: "random-survey-abe86.firebaseapp.com",
@@ -21,7 +22,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const perGroupLimit = 2; 
+    const perGroupLimit = 2; // 測試模式
     const urls = [
       'https://www.surveycake.com/s/PwOV2',
       'https://www.surveycake.com/s/oN0Q3',
@@ -34,7 +35,10 @@
       const groups = [];
       snapshot.forEach(doc => {
         const data = doc.data();
-        if (data.count < perGroupLimit) groups.push({id: doc.id, ...data});
+        // 只加入還有名額的 group
+        if (data.count < perGroupLimit) {
+          groups.push({id: doc.id, ...data});
+        }
       });
 
       if (groups.length === 0) {
@@ -42,19 +46,25 @@
         return;
       }
 
+      // 隨機分派一組
       const chosen = groups[Math.floor(Math.random() * groups.length)];
       const groupRef = db.collection('surveyGroups').doc(chosen.id);
+
+      // Transaction 增加 count
       await db.runTransaction(async (t) => {
         const doc = await t.get(groupRef);
-        if (doc.data().count >= perGroupLimit) throw "Full";
-        t.update(groupRef, {count: doc.data().count + 1});
+        const currentCount = doc.data().count;
+        if (currentCount >= perGroupLimit) throw "Full";
+        t.update(groupRef, {count: currentCount + 1});
       });
 
-      window.location.href = chosen.url;
+      // 導向對應問卷
+      const index = parseInt(chosen.groupName) - 1; // groupName 1~4 對應 urls 0~3
+      window.location.href = urls[index];
     }
 
     assignGroup().catch(err => {
-      if (err === "Full") window.location.reload();
+      if (err === "Full") window.location.reload(); // 有人搶滿就重載
       else document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
     });
   </script>
