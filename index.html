@@ -31,9 +31,10 @@
 
     async function assignGroup() {
       const snapshot = await db.collection('surveyGroups').get();
-      const groups = [];
+      let groups = [];
       snapshot.forEach(doc => {
         const data = doc.data();
+        // 只加入 count 未滿的 group
         if (data.count < perGroupLimit) {
           groups.push({id: doc.id, ...data});
         }
@@ -44,24 +45,45 @@
         return;
       }
 
-      const chosen = groups[Math.floor(Math.random() * groups.length)];
-      const groupRef = db.collection('surveyGroups').doc(chosen.id);
+      let assigned = false;
+      while (!assigned && groups.length > 0) {
+        // 隨機選一組
+        const chosenIndex = Math.floor(Math.random() * groups.length);
+        const chosen = groups[chosenIndex];
+        const groupRef = db.collection('surveyGroups').doc(chosen.id);
 
-      await db.runTransaction(async (t) => {
-        const doc = await t.get(groupRef);
-        const currentCount = doc.data().count;
-        if (currentCount >= perGroupLimit) throw "Full";
-        t.update(groupRef, {count: currentCount + 1});
-      });
+        try {
+          // Transaction 增加 count
+          await db.runTransaction(async (t) => {
+            const doc = await t.get(groupRef);
+            const currentCount = doc.data().count;
+            if (currentCount >= perGroupLimit) throw "Full";
+            t.update(groupRef, {count: currentCount + 1});
+          });
 
-      const index = parseInt(chosen.groupName) - 1;
-      window.location.href = urls[index];
+          // 導向對應問卷
+          const index = parseInt(chosen.groupName, 10) - 1;
+          window.location.href = urls[index];
+          assigned = true;
+
+        } catch (err) {
+          if (err === "Full") {
+            // 移除已滿的 group，繼續 while 隨機選剩下的
+            groups.splice(chosenIndex, 1);
+          } else {
+            console.error(err);
+            document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
+            return;
+          }
+        }
+      }
+
+      if (!assigned) {
+        document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+      }
     }
 
-    assignGroup().catch(err => {
-      if (err === "Full") window.location.reload();
-      else document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
-    });
+    assignGroup();
   </script>
 </body>
 </html>
