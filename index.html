@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Random Survey</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <h2>請稍候...</h2>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDwNLmo8CbUy_yz8Phay5ugxBVnsTWxrtc",
+      authDomain: "random-survey-abe86.firebaseapp.com",
+      projectId: "random-survey-abe86",
+      storageBucket: "random-survey-abe86.firebasestorage.app",
+      messagingSenderId: "586364937583",
+      appId: "1:586364937583:web:1b95dbb866c3305230f49a",
+      measurementId: "G-SC7Q6VY1RS"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const perGroupLimit = 50; 
+    const urls = [
+      'https://www.surveycake.com/s/PwOV2',
+      'https://www.surveycake.com/s/oN0Q3',
+      'https://www.surveycake.com/s/e2m86',
+      'https://www.surveycake.com/s/NNY2L'
+    ];
+
+    async function assignGroup() {
+      const snapshot = await db.collection('surveyGroups').get();
+      const groups = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.count < perGroupLimit) groups.push({id: doc.id, ...data});
+      });
+
+      if (groups.length === 0) {
+        document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+        return;
+      }
+
+      const chosen = groups[Math.floor(Math.random() * groups.length)];
+      const groupRef = db.collection('surveyGroups').doc(chosen.id);
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(groupRef);
+        if (doc.data().count >= perGroupLimit) throw "Full";
+        t.update(groupRef, {count: doc.data().count + 1});
+      });
+
+      window.location.href = chosen.url;
+    }
+
+    assignGroup().catch(err => {
+      if (err === "Full") window.location.reload();
+      else document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
+    });
+  </script>
+</body>
+</html>
