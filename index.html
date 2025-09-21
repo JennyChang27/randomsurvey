@@ -7,8 +7,10 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+  <h2 id="message">3 秒後將自動進入問卷...</h2>
+
   <script>
-    // 1️⃣ Firebase 初始化
+    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyDwNLmo8CbUy_yz8Phay5ugxBVnsTWxrtc",
       authDomain: "random-survey-abe86.firebaseapp.com",
@@ -22,6 +24,12 @@
     const db = firebase.firestore();
 
     const perGroupLimit = 2; // 測試模式
+    const urls = {
+      "A": "https://www.surveycake.com/s/PwOV2",
+      "B": "https://www.surveycake.com/s/oN0Q3",
+      "C": "https://www.surveycake.com/s/e2m86",
+      "D": "https://www.surveycake.com/s/NNY2L"
+    };
 
     async function assignGroup() {
       const snapshot = await db.collection('surveyGroups').get();
@@ -38,7 +46,7 @@
         return;
       }
 
-      // 隨機選一組
+      // 隨機挑一組
       const chosen = groups[Math.floor(Math.random() * groups.length)];
       const groupRef = db.collection('surveyGroups').doc(chosen.id);
 
@@ -50,20 +58,31 @@
           t.update(groupRef, {count: currentCount + 1});
         });
 
-        // 🚀 直接用 Firestore 的 url，不用再對應 index
-        window.location.href = chosen.url;
+        // 導向該組問卷
+        window.location.href = urls[chosen.groupName];
 
-      } catch(err) {
+      } catch (err) {
         if (err === "Full") {
-          // 重新嘗試一次
-          assignGroup();
+          window.location.reload();
         } else {
           document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
         }
       }
     }
 
-    assignGroup();
+    // 倒數計時器
+    let counter = 3;
+    const msg = document.getElementById("message");
+    const interval = setInterval(() => {
+      counter--;
+      if (counter > 0) {
+        msg.textContent = counter + " 秒後將自動進入問卷...";
+      } else {
+        clearInterval(interval);
+        msg.textContent = "正在進入問卷...";
+        assignGroup();
+      }
+    }, 1000);
   </script>
 </body>
 </html>
