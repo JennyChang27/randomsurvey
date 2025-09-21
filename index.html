@@ -7,7 +7,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <h2>請稍候...</h2>
   <script>
     // 1️⃣ Firebase 初始化
     const firebaseConfig = {
@@ -35,7 +34,6 @@
       const groups = [];
       snapshot.forEach(doc => {
         const data = doc.data();
-        // 只加入還有名額的 group
         if (data.count < perGroupLimit) {
           groups.push({id: doc.id, ...data});
         }
@@ -46,11 +44,9 @@
         return;
       }
 
-      // 隨機分派一組
       const chosen = groups[Math.floor(Math.random() * groups.length)];
       const groupRef = db.collection('surveyGroups').doc(chosen.id);
 
-      // Transaction 增加 count
       await db.runTransaction(async (t) => {
         const doc = await t.get(groupRef);
         const currentCount = doc.data().count;
@@ -58,13 +54,12 @@
         t.update(groupRef, {count: currentCount + 1});
       });
 
-      // 導向對應問卷
-      const index = parseInt(chosen.groupName) - 1; // groupName 1~4 對應 urls 0~3
+      const index = parseInt(chosen.groupName) - 1;
       window.location.href = urls[index];
     }
 
     assignGroup().catch(err => {
-      if (err === "Full") window.location.reload(); // 有人搶滿就重載
+      if (err === "Full") window.location.reload();
       else document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
     });
   </script>
