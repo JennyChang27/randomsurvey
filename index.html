@@ -1,64 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Random Survey</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
 <body>
-  <div id="message">倒數 3 秒後自動分派…</div>
+  <h2 id="message">載入中...</h2>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    // 🔧 你的 Firebase config
+  <script>
+    // 1️⃣ Firebase 初始化
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyDwNLmo8CbUy_yz8Phay5ugxBVnsTWxrtc",
+      authDomain: "random-survey-abe86.firebaseapp.com",
+      projectId: "random-survey-abe86",
+      storageBucket: "random-survey-abe86.firebasestorage.app",
+      messagingSenderId: "586364937583",
+      appId: "1:586364937583:web:1b95dbb866c3305230f49a",
+      measurementId: "G-SC7Q6VY1RS"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const perGroupLimit = 2; // 測試模式
+    const urls = {
+      "A": "https://www.surveycake.com/s/PwOV2",
+      "B": "https://www.surveycake.com/s/oN0Q3",
+      "C": "https://www.surveycake.com/s/e2m86",
+      "D": "https://www.surveycake.com/s/NNY2L"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    // ✅ 倒數 + 分派
+    function startCountdown() {
+      let count = 3;
+      const msg = document.getElementById("message");
+      msg.innerText = `倒數 ${count} 秒後自動分派…`;
 
-    const groups = ["A", "B", "C", "D"];
-    const perGroupLimit = 2;
-
-    async function assignGroup() {
-      // 讀取所有組別
-      const available = [];
-      for (let g of groups) {
-        const ref = doc(db, "surveyGroups", g);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.count < perGroupLimit) {
-            available.push({ ref, data });
-          }
+      const interval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          msg.innerText = `倒數 ${count} 秒後自動分派…`;
+        } else {
+          clearInterval(interval);
+          assignGroup();
         }
-      }
-
-      if (available.length === 0) {
-        document.getElementById("message").innerText = "感謝參與，本研究已額滿！";
-        return;
-      }
-
-      // 隨機挑一組
-      const choice = available[Math.floor(Math.random() * available.length)];
-      await updateDoc(choice.ref, {
-        count: choice.data.count + 1
-      });
-
-      // 跳轉
-      window.location.href = choice.data.url;
+      }, 1000);
     }
 
-    // ⏳ 倒數 3 秒，才真正觸發 assignGroup()
-    let count = 3;
-    const interval = setInterval(() => {
-      document.getElementById("message").innerText = `倒數 ${count} 秒後自動分派…`;
-      count--;
-      if (count < 0) {
-        clearInterval(interval);
-        assignGroup();
+    // ✅ 確保只有「真正進到網頁」才觸發
+    function initWhenVisible() {
+      if (document.visibilityState === "visible") {
+        startCountdown();
+      } else {
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            startCountdown();
+          }
+        }, { once: true });
       }
-    }, 1000);
+    }
+
+    // ✅ 分派邏輯
+    async function assignGroup() {
+      try {
+        const snapshot = await db.collection('surveyGroups').get();
+        const groups = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.count < perGroupLimit) {
+            groups.push({id: doc.id, ...data});
+          }
+        });
+
+        if (groups.length === 0) {
+          document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+          return;
+        }
+
+        const chosen = groups[Math.floor(Math.random() * groups.length)];
+        const groupRef = db.collection('surveyGroups').doc(chosen.id);
+
+        await db.runTransaction(async (t) => {
+          const doc = await t.get(groupRef);
+          const currentCount = doc.data().count;
+          if (currentCount >= perGroupLimit) throw "Full";
+          t.update(groupRef, {count: currentCount + 1});
+        });
+
+        // 根據 groupName 轉跳
+        window.location.href = urls[chosen.groupName];
+      } catch (err) {
+        if (err === "Full") {
+          document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+        } else {
+          document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
+          console.error(err);
+        }
+      }
+    }
+
+    // 🚀 啟動
+    initWhenVisible();
   </script>
 </body>
+</html>
