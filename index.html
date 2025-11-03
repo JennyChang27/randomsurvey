@@ -7,7 +7,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <h2 id="message">載入中...</h2>
+  <h2 id="message">loading...</h2>
 
   <script>
     // 1️⃣ Firebase 初始化
@@ -35,12 +35,12 @@
     function startCountdown() {
       let count = 3;
       const msg = document.getElementById("message");
-      msg.innerText = `倒數 ${count} 秒後自動分派…`;
+      msg.innerText = `Auto-assigning in ${count} seconds…`;
 
       const interval = setInterval(() => {
         count--;
         if (count > 0) {
-          msg.innerText = `倒數 ${count} 秒後自動分派…`;
+          msg.innerText = `Auto-assigning in ${count} seconds…`;
         } else {
           clearInterval(interval);
           assignGroup();
@@ -74,7 +74,7 @@
         });
 
         if (groups.length === 0) {
-          document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+          document.body.innerHTML = "<h2>Thank you for your interest, this study is now full!</h2>";
           return;
         }
 
@@ -92,9 +92,9 @@
         window.location.href = urls[chosen.groupName];
       } catch (err) {
         if (err === "Full") {
-          document.body.innerHTML = "<h2>感謝參與，本研究已額滿！</h2>";
+          document.body.innerHTML = "<h2>Thank you for your interest, this study is now full!</h2>";
         } else {
-          document.body.innerHTML = "<h2>發生錯誤，請稍後再試。</h2>";
+          document.body.innerHTML = "<h2>Something went wrong, please try again later.</h2>";
           console.error(err);
         }
       }
